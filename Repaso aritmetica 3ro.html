@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aventura Ninja de Matemáticas</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        :root {
+            --green: #58cc02; --green-dark: #48a202; --blue: #1cb0f6; --blue-dark: #1899d6;
+            --red: #ff4b4b; --red-dark: #d63f3f; --grey-light: #e5e5e5; --grey-medium: #afafaf; --grey-dark: #4b4b4b;
+            --background: #ffffff; --text-color: #4b4b4b;
+        }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--background); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; color: var(--text-color); text-align: center; padding: 20px; box-sizing: border-box; overflow: hidden; }
+        #game-container { width: 100%; max-width: 600px; position: relative; z-index: 2; }
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        #welcome-screen h1 { font-size: 36px; color: var(--grey-dark); margin-bottom: 10px; }
+        #welcome-screen p { font-size: 20px; color: var(--grey-medium); margin-bottom: 40px; font-style: italic; }
+        #naruto-svg { width: 150px; height: 150px; margin-bottom: 20px; }
+        #game-over-screen h1 { font-size: 42px; color: var(--grey-dark); margin-bottom: 10px; }
+        #game-over-screen p { font-size: 20px; color: var(--grey-medium); margin-bottom: 40px; }
+        
+        #stats-bar { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: 600; margin-bottom: 10px; padding: 0 5px; }
+        #xp-display { color: #ffc107; font-weight: 700; margin-left: 10px; }
+        #hearts-display { font-size: 24px; color: var(--red); letter-spacing: 2px; }
+        #stats-right { display: flex; align-items: center; }
+        #progress-container { width: 100%; background-color: var(--grey-light); border-radius: 10px; height: 16px; margin-bottom: 40px; }
+        #progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #58cc02, #84d8ff); border-radius: 10px; transition: width 0.3s ease-in-out; }
+        #question-title { font-size: 28px; font-weight: 700; margin-bottom: 25px; line-height: 1.3; }
+        #question-content { min-height: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center; margin-bottom: 30px; font-size: 48px; font-weight: 700; color: var(--grey-dark); transition: min-height 0.3s ease; }
+        #question-content.text-only { min-height: 20px; font-size: 24px; line-height: 1.5; }
+        #question-content svg { max-width: 180px; height: auto; margin: 0 10px; }
+
+        #options-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 100px; } 
+        .option-btn { background-color: #fff; border: 2px solid var(--grey-light); border-radius: 12px; padding: 20px; font-size: 22px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; min-height: 80px; }
+        .option-btn:hover:not(:disabled) { border-color: var(--blue); background-color: #f0f8ff; }
+        .option-btn.selected { border-color: var(--blue); background-color: #e1f5fe; }
+        .option-btn:disabled { cursor: not-allowed; opacity: 0.8; }
+        .option-btn.correct { border-color: var(--green-dark); background-color: #d7ffb8; color: var(--green-dark); font-weight: 700;}
+        .option-btn.incorrect { border-color: var(--red-dark); background-color: #ffdfe0; color: var(--red-dark); }
+
+        #footer { position: fixed; bottom: 0; left: 0; width: 100%; background-color: rgba(255,255,255,0.95); backdrop-filter: blur(5px); z-index: 10; border-top: 1px solid var(--grey-light); padding: 15px 0; }
+        .action-btn { width: 90%; max-width: 400px; margin: 0 auto; padding: 18px; font-size: 18px; font-weight: 700; color: #fff; background-color: var(--green); border: none; border-bottom: 4px solid var(--green-dark); border-radius: 12px; cursor: pointer; text-transform: uppercase; display: block; }
+        .action-btn:disabled { background-color: var(--grey-medium); border-bottom-color: #9e9e9e; cursor: not-allowed; }
+        .action-btn.continue-correct { background-color: var(--green); border-bottom-color: var(--green-dark); }
+        .action-btn.continue-incorrect { background-color: var(--red); border-bottom-color: var(--red-dark); }
+
+        #level-complete-screen h1, #results-screen h1 { font-size: 38px; color: var(--green); }
+        #level-complete-screen p, #results-screen p { font-size: 22px; color: var(--grey-dark); }
+        #achievement-display { background-color: #f0f8ff; border: 2px solid var(--blue); border-radius: 12px; padding: 20px; margin: 25px 0; }
+        #achievement-title { font-size: 24px; font-weight: 700; color: var(--blue-dark); margin: 0 0 10px 0; }
+        #achievement-desc { font-size: 18px; margin: 0; }
+        
+        #animation-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99; }
+        .shuriken { position: absolute; width: 40px; height: 40px; }
+        .shuriken.correct-anim { animation: fly-across 1s ease-out forwards; }
+        .shuriken.incorrect-anim { animation: hit-heart 0.5s ease-in forwards; }
+        @keyframes fly-across { from { transform: translateX(-100px) rotate(0deg); } to { transform: translateX(100vw) rotate(720deg); } }
+        @keyframes hit-heart { from { opacity: 1; transform: translate(var(--start-x), var(--start-y)) rotate(0deg) scale(1.5); } to { opacity: 0; transform: translate(var(--target-x), var(--target-y)) rotate(540deg) scale(0.5); } }
+    </style>
+</head>
+<body>
+    <div id="animation-container"></div>
+    <div id="game-container">
+        <!-- Pantallas -->
+        <div id="welcome-screen" class="screen active">
+            <svg id="naruto-svg" viewBox="0 0 100 100">
+                <g fill="none" stroke="#4b4b4b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M25 50 C 20 30, 80 30, 75 50 C 90 55, 85 80, 50 95 C 15 80, 10 55, 25 50 Z" fill="#FFDBAC"/>
+                    <path d="M20 45 Q 50 20, 80 45" fill="#FFC107"/>
+                    <path d="M20 45 L 15 30 L 30 40 L 40 25 L 50 38 L 60 25 L 70 40 L 85 30 L 80 45 Z" fill="#FFC107"/>
+                    <rect x="30" y="42" width="40" height="10" rx="2" fill="#BDBDBD"/>
+                    <path d="M47 47 C 48 45, 52 45, 53 47 C 52 49, 48 49, 47 47" fill="#4b4b4b"/>
+                    <circle cx="40" cy="58" r="3" fill="white"/><circle cx="40" cy="58" r="1.5" fill="black"/>
+                    <circle cx="60" cy="58" r="3" fill="white"/><circle cx="60" cy="58" r="1.5" fill="black"/>
+                    <path d="M45 68 Q 50 72, 55 68"/>
+                    <path d="M35 75 C 37 73, 42 73, 44 75"/> <path d="M56 75 C 58 73, 63 73, 65 75"/>
+                </g>
+            </svg>
+            <h1>¡Misión Matemática!</h1>
+            <p>"¡De veras! Resuelve problemas de cantidad y demuestra que eres un verdadero ninja de las matemáticas."</p>
+            <button id="start-btn" class="action-btn">Empezar Misión</button>
+        </div>
+        <div id="game-screen" class="screen"><div id="stats-bar"><span id="level-display"></span><div id="stats-right"><span id="hearts-display"></span><span id="xp-display"></span></div></div><div id="progress-container"><div id="progress-bar"></div></div><h1 id="question-title"></h1><div id="question-content"></div><div id="options-container"></div></div>
+        <div id="level-complete-screen" class="screen"><h1>¡Misión Cumplida!</h1><div id="achievement-display"><h2 id="achievement-title"></h2><p id="achievement-desc"></p></div><button id="next-level-btn" class="action-btn">Continuar</button></div>
+        <div id="results-screen" class="screen"><h1>¡Entrenamiento Completado!</h1><p id="final-score-text"></p><button id="restart-btn" class="action-btn">Jugar de nuevo</button></div>
+        <div id="game-over-screen" class="screen"><h1>¡Fin del juego!</h1><p>Te quedaste sin corazones. ¡No te rindas!</p><button id="retry-btn" class="action-btn">Volver a intentar</button></div>
+    </div>
+    <div id="footer" style="display: none;"><button id="action-btn" class="action-btn" disabled>Comprobar</button></div>
+
+<script>
+// --- 1. CONFIGURACIÓN DEL JUEGO ---
+const GAME_SETTINGS = {
+    questionsPerLevel: 10, xpForCorrect: 20, initialLives: 5,
+    levels: [
+        { 
+            title: "Misión 1: El Arte de la Medida", 
+            mix: [ 'mass_conversion', 'read_clock', 'time_conversion_to_min', 'mass_conversion', 'read_clock', 'time_conversion_from_min', 'mass_conversion', 'read_clock', 'time_conversion_to_min', 'time_conversion_from_min'],
+            achievement: { title: "Maestro del Kilogramo y el Minuto", description: "¡Mides el peso y el tiempo como un verdadero sabio!" }
+        },
+        { 
+            title: "Misión 2: El Secreto de las Fracciones", 
+            mix: [ 'equivalent_fraction_fill', 'simplify_fraction_fill', 'word_problem_mass', 'find_unsimplified', 'equivalent_fraction_fill', 'simplify_fraction_fill', 'word_problem_mass', 'find_unsimplified', 'equivalent_fraction_fill', 'simplify_fraction_fill' ],
+            achievement: { title: "Ninja de las Fracciones", description: "¡Divides y simplificas con la precisión de un shuriken!" }
+        }
+    ]
+};
+
+// --- 2. REFERENCIAS AL DOM Y VARIABLES DE ESTADO ---
+const screens = { welcome: document.getElementById('welcome-screen'), game: document.getElementById('game-screen'), levelComplete: document.getElementById('level-complete-screen'), results: document.getElementById('results-screen'), gameOver: document.getElementById('game-over-screen') };
+const levelDisplay = document.getElementById('level-display'), xpDisplay = document.getElementById('xp-display'), heartsDisplay = document.getElementById('hearts-display'), progressBar = document.getElementById('progress-bar'), animationContainer = document.getElementById('animation-container');
+const questionTitle = document.getElementById('question-title'), questionContent = document.getElementById('question-content'), optionsContainer = document.getElementById('options-container');
+const actionBtn = document.getElementById('action-btn');
+const achievementTitle = document.getElementById('achievement-title'), achievementDesc = document.getElementById('achievement-desc');
+const startBtn = document.getElementById('start-btn'), restartBtn = document.getElementById('restart-btn'), retryBtn = document.getElementById('retry-btn'), nextLevelBtn = document.getElementById('next-level-btn');
+const footer = document.getElementById('footer');
+let currentLevelIndex = 0, currentQuestionInLevel = 0, totalXP = 0, lives = 0, currentQuestionData = null, selectedAnswer = null;
+const SHURIKEN_SVG = `<svg viewBox="0 0 100 100"><path d="M50 0 L60 40 L100 50 L60 60 L50 100 L40 60 L0 50 L40 40 Z" fill="#4b4b4b"/></svg>`;
+
+// --- 3. FUNCIONES AUXILIARES ---
+function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+// --- 4. GENERADORES DE PREGUNTAS ---
+const questionGenerators = {
+    mass_conversion: () => {
+        const grams = getRandomInt(1, 9) * 1000 + getRandomInt(10, 99) * 10;
+        const kg = Math.floor(grams / 1000);
+        const g = grams % 1000;
+        const correctAnswer = `${kg} kg ${g} g`;
+        const options = new Set([correctAnswer]);
+        while (options.size < 4) {
+            const wrongKg = getRandomInt(1, 9);
+            const wrongG = getRandomInt(10, 99) * 10;
+            if (wrongKg !== kg || wrongG !== g) options.add(`${wrongKg} kg ${wrongG} g`);
+        }
+        return { title: `Convierte a kilogramos y gramos: <b>${grams} g</b>`, type: 'text', correctAnswer, options: Array.from(options).sort(() => 0.5 - Math.random()) };
+    },
+    read_clock: () => {
+        const hour = getRandomInt(1, 12);
+        const minute = getRandomInt(0, 11) * 5;
+        const hourAngle = (hour % 12 + minute / 60) * 30;
+        const minuteAngle = minute * 6;
+        const svg = `<svg viewBox="-10 -10 120 120">
+            <circle cx="50" cy="50" r="50" fill="white" stroke="black" stroke-width="2"/>
+            <line x1="50" y1="50" x2="${50 + 40 * Math.sin(minuteAngle * Math.PI / 180)}" y2="${50 - 40 * Math.cos(minuteAngle * Math.PI / 180)}" stroke="black" stroke-width="2" stroke-linecap="round"/>
+            <line x1="50" y1="50" x2="${50 + 25 * Math.sin(hourAngle * Math.PI / 180)}" y2="${50 - 25 * Math.cos(hourAngle * Math.PI / 180)}" stroke="black" stroke-width="3" stroke-linecap="round"/>
+        </svg>`;
+        const correctAnswer = `${hour}:${String(minute).padStart(2, '0')}`;
+        const options = new Set([correctAnswer]);
+        while(options.size < 4) {
+            const wrongHour = getRandomInt(1,12);
+            const wrongMin = getRandomInt(0,11) * 5;
+            if(wrongHour !== hour || wrongMin !== minute) options.add(`${wrongHour}:${String(wrongMin).padStart(2, '0')}`);
+        }
+        return { title: '¿Qué hora es?', type: 'visual', svg, correctAnswer, options: Array.from(options).sort(() => 0.5 - Math.random()) };
+    },
+    time_conversion_to_min: () => {
+        const h = getRandomInt(1, 3);
+        const m = getRandomInt(1, 5) * 10;
+        const totalMinutes = h * 60 + m;
+        const correctAnswer = `${totalMinutes} min`;
+        const options = new Set([correctAnswer]);
+        options.add(`${h * 100 + m} min`);
+        options.add(`${h + m} min`);
+        while(options.size < 4) options.add(`${totalMinutes + getRandomInt(-15, 15)} min`);
+        return { title: `¿Cuántos minutos son <b>${h} h ${m} min</b>?`, type: 'text', correctAnswer, options: Array.from(options).sort(() => 0.5 - Math.random()) };
+    },
+    time_conversion_from_min: () => {
+        const totalMinutes = getRandomInt(70, 170);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        const correctAnswer = `${h} h ${m} min`;
+        const options = new Set([correctAnswer]);
+        options.add(`${m} h ${h} min`);
+        while(options.size < 4) {
+            const wrongH = getRandomInt(1,3);
+            const wrongM = getRandomInt(10,59);
+            if(wrongH !== h || wrongM !== m) options.add(`${wrongH} h ${wrongM} min`);
+        }
+        return { title: `Convierte a horas y minutos: <b>${totalMinutes} min</b>`, type: 'text', correctAnswer, options: Array.from(options).sort(() => 0.5 - Math.random()) };
+    },
+    equivalent_fraction_fill: () => {
+        const n1 = getRandomInt(2, 5);
+        const d1 = getRandomInt(n1 + 1, 9);
+        const mult = getRandomInt(2, 4);
+        const n2 = n1 * mult;
+        const d2 = d1 * mult;
+        const hideNumerator = Math.random() < 0.5;
+        const title = hideNumerator ? `Completa: <b><sup>${n1}</sup>/<sub>${d1}</sub> = <sup>?</sup>/<sub>${d2}</sub></b>` : `Completa: <b><sup>${n1}</sup>/<sub>${d1}</sub> = <sup>${n2}</sup>/<sub>?</sub></b>`;
+        const correctAnswer = hideNumerator ? `${n2}` : `${d2}`;
+        const options = new Set([correctAnswer]);
+        while(options.size < 4) options.add(`${getRandomInt(2, 40)}`);
+        return { title, type: 'text', correctAnswer, options: Array.from(options).sort(() => 0.5 - Math.random()) };
+    },
+    simplify_fraction_fill: () => {
+        const div = getRandomInt(2, 4);
+        const n2 = getRandomInt(1, 3);
+        const d2 = getRandomInt(n2 + 1, 5);
+        const n1 = n2 * div;
+        const d1 = d2 * div;
+        const hideNumerator = Math.random() < 0.5;
+        const title = hideNumerator ? `Simplifica: <b><sup>${n1}</sup>/<sub>${d1}</sub> = <sup>?</sup>/<sub>${d2}</sub></b>` : `Simplifica: <b><sup>${n1}</sup>/<sub>${d1}</sub> = <sup>${n2}</sup>/<sub>?</sub></b>`;
+        const correctAnswer = hideNumerator ? `${n2}` : `${d2}`;
+        const options = new Set([correctAnswer]);
+        while(options.size < 4) options.add(`${getRandomInt(1, 10)}`);
+        return { title, type: 'text', correctAnswer, options: Array.from(options).sort(() => 0.5 - Math.random()) };
+    },
+    find_unsimplified: () => {
+        const options = new Set();
+        let correctAnswer = '';
+        // Add 1 unsimplified fraction
+        const div = getRandomInt(2,3); const n_s = getRandomInt(2,5); const d_s = getRandomInt(n_s+1, 7);
+        correctAnswer = `${n_s*div}/${d_s*div}`;
+        options.add(correctAnswer);
+        // Add 3 simplified fractions
+        while(options.size < 4) {
+            const n = getRandomInt(1, 7); const d = getRandomInt(n + 1, 9);
+            if (gcd(n,d) === 1) options.add(`${n}/${d}`);
+        }
+        return { title: 'Encierra la fracción que <b>no está</b> en su forma más simple.', type: 'text', correctAnswer, options: Array.from(options).sort(() => 0.5 - Math.random()) };
+    },
+    word_problem_mass: () => {
+        const penMass = getRandomInt(10, 20) * 10; // e.g., 100, 110...
+        const multiplier = getRandomInt(3, 5);
+        const staplerMass = penMass * multiplier;
+        const totalMass = penMass + staplerMass;
+        const correctAnswer = `${totalMass} g`;
+        const options = new Set([correctAnswer]);
+        options.add(`${staplerMass} g`);
+        options.add(`${penMass} g`);
+        while (options.size < 4) options.add(`${totalMass + getRandomInt(-50, 50)} g`);
+        return { title: `La masa de una pluma es de ${penMass} g. Una grapadora pesa ${multiplier} veces más que una pluma. ¿Cuál es la masa total de la pluma y la grapadora?`, type: 'text', correctAnswer, options: Array.from(options).sort(() => 0.5 - Math.random()) };
+    }
+};
+
+// --- 5. LÓGICA DE ANIMACIONES ---
+function playCorrectAnimation() { for (let i = 0; i < 5; i++) { const shuriken = document.createElement('div'); shuriken.className = 'shuriken correct-anim'; shuriken.innerHTML = SHURIKEN_SVG; shuriken.style.top = `${getRandomInt(10, 90)}%`; shuriken.style.animationDelay = `${Math.random() * 0.4}s`; shuriken.style.animationDuration = `${0.5 + Math.random() * 0.5}s`; animationContainer.appendChild(shuriken); setTimeout(() => shuriken.remove(), 1500); } }
+function playIncorrectAnimation() { const heartsRect = heartsDisplay.getBoundingClientRect(); if (!heartsRect) return; const targetX = heartsRect.left + (heartsRect.width / GAME_SETTINGS.initialLives) * (lives - 0.5); const targetY = heartsRect.top + heartsRect.height / 2; const startX = window.innerWidth / 2; const startY = window.innerHeight; const shuriken = document.createElement('div'); shuriken.className = 'shuriken incorrect-anim'; shuriken.innerHTML = SHURIKEN_SVG; shuriken.style.setProperty('--start-x', `${startX}px`); shuriken.style.setProperty('--start-y', `${startY}px`); shuriken.style.setProperty('--target-x', `${targetX}px`); shuriken.style.setProperty('--target-y', `${targetY}px`); animationContainer.appendChild(shuriken); setTimeout(() => shuriken.remove(), 500); }
+
+// --- 6. LÓGICA DEL JUEGO ---
+function switchScreen(screenName) { Object.values(screens).forEach(s => s.classList.remove('active')); screens[screenName].classList.add('active'); }
+function startGame() { switchScreen('game'); footer.style.display = 'block'; currentLevelIndex = 0; totalXP = 0; lives = GAME_SETTINGS.initialLives; startLevel(); }
+function startLevel() { currentQuestionInLevel = 0; switchScreen('game'); loadQuestion(); }
+function loadQuestion() {
+    selectedAnswer = null; actionBtn.disabled = true; actionBtn.textContent = 'Comprobar'; actionBtn.className = 'action-btn'; actionBtn.onclick = checkAnswer;
+    document.querySelectorAll('.option-btn').forEach(btn => { btn.disabled = false; btn.className = 'option-btn'; });
+    const level = GAME_SETTINGS.levels[currentLevelIndex]; const questionType = level.mix[currentQuestionInLevel];
+    currentQuestionData = questionGenerators[questionType]();
+    renderQuestion(currentQuestionData); updateStats(); updateProgressBar();
+}
+function renderQuestion(data) {
+    questionTitle.innerHTML = data.title; questionContent.innerHTML = ''; optionsContainer.innerHTML = '';
+    questionContent.classList.toggle('text-only', data.type === 'text');
+    if (data.type === 'visual') questionContent.innerHTML = data.svg;
+    data.options.forEach(option => { const button = document.createElement('button'); button.className = 'option-btn'; button.innerHTML = option; button.onclick = (e) => selectOption(e.currentTarget, option); optionsContainer.appendChild(button); });
+}
+function selectOption(buttonElement, option) { document.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('selected')); buttonElement.classList.add('selected'); selectedAnswer = option; actionBtn.disabled = false; }
+function checkAnswer() {
+    const isCorrect = selectedAnswer === currentQuestionData.correctAnswer;
+    document.querySelectorAll('.option-btn').forEach(btn => { btn.disabled = true; if (btn.innerHTML === currentQuestionData.correctAnswer) btn.classList.add('correct'); else if (btn.innerHTML === selectedAnswer) btn.classList.add('incorrect'); });
+    if (isCorrect) {
+        playCorrectAnimation(); totalXP += GAME_SETTINGS.xpForCorrect;
+        actionBtn.textContent = `¡GENIAL! CONTINUAR`; actionBtn.classList.add('continue-correct');
+        updateStats(); actionBtn.onclick = nextStep;
+    } else {
+        playIncorrectAnimation(); actionBtn.textContent = 'CONTINUAR'; actionBtn.classList.add('continue-incorrect');
+        setTimeout(() => { lives--; updateStats(); if (lives <= 0) { actionBtn.onclick = showGameOver; } else { actionBtn.onclick = nextStep; } }, 400);
+    }
+}
+function nextStep() {
+    if (lives <= 0) { showGameOver(); return; }
+    currentQuestionInLevel++;
+    if (currentQuestionInLevel < GAME_SETTINGS.questionsPerLevel) { loadQuestion(); } else { showLevelComplete(); }
+}
+function showGameOver() { switchScreen('gameOver'); footer.style.display = 'none'; }
+function showLevelComplete() {
+    switchScreen('levelComplete'); footer.style.display = 'none';
+    const levelData = GAME_SETTINGS.levels[currentLevelIndex];
+    achievementTitle.textContent = levelData.achievement.title; achievementDesc.textContent = levelData.achievement.description;
+    if (currentLevelIndex < GAME_SETTINGS.levels.length - 1) {
+        nextLevelBtn.textContent = `Ir a la ${GAME_SETTINGS.levels[currentLevelIndex + 1].title}`;
+        nextLevelBtn.onclick = () => { currentLevelIndex++; footer.style.display = 'block'; startLevel(); };
+    } else {
+        nextLevelBtn.textContent = 'Ver resultados finales';
+        nextLevelBtn.onclick = showFinalResults;
+    }
+}
+function showFinalResults() { switchScreen('results'); footer.style.display = 'none'; finalScoreText.textContent = `¡Tu puntuación total es de ${totalXP} XP! ¡Eres un verdadero ninja de las matemáticas!`; }
+function updateStats() {
+    levelDisplay.textContent = GAME_SETTINGS.levels[currentLevelIndex].title;
+    xpDisplay.textContent = `${totalXP} XP ✨`;
+    heartsDisplay.innerHTML = '❤️'.repeat(lives) + '🖤'.repeat(GAME_SETTINGS.initialLives - lives);
+}
+function updateProgressBar() { const progress = (currentQuestionInLevel / GAME_SETTINGS.questionsPerLevel) * 100; progressBar.style.width = `${progress}%`; }
+
+startBtn.onclick = startGame;
+restartBtn.onclick = () => switchScreen('welcome');
+retryBtn.onclick = () => switchScreen('welcome');
+</script>
+</body>
+</html>
